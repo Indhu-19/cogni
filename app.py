@@ -50,9 +50,14 @@ for col, q in zip(cols, sample_questions):
         clicked_query = q
 
 user_query = st.chat_input("Ask Cogni about budgeting or your spending...")
-query = clicked_query or user_query
+query = clicked_query if clicked_query is not None else user_query
 
-if query:
+if query is not None:
+
+    query = query.strip()
+
+    if query == "":
+        st.stop()
     st.session_state.history.append(("user", query))
     with st.chat_message("user"):
         st.markdown(query)
@@ -64,16 +69,23 @@ if query:
 with st.chat_message("assistant"):
     with st.spinner("Thinking..."):
         try:
-            answer = ask_cogni(query)
-        except Exception as e:
-            err_text = str(e)
-            if "429" in err_text or "quota" in err_text.lower():
-                answer = (
-                    "I've hit the free-tier rate limit for the moment. "
-                    "This is a Gemini API quota limit, not a bug — please "
-                    "wait about a minute and try again."
-                )
-            else:
-                answer = f"```python\n{traceback.format_exc()}\n```"
 
-        st.markdown(answer)
+    answer = ask_cogni(query)
+
+except Exception as e:
+
+    err = str(e).lower()
+
+    if "429" in err or "quota" in err:
+
+        answer = (
+            "⚠️ Gemini free-tier quota exceeded.\n\n"
+            "Please wait for about a minute and try again."
+        )
+
+    else:
+
+        import traceback
+
+        answer = f"""
+### Error
