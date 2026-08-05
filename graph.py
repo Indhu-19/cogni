@@ -22,7 +22,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from rag import get_retriever
 from tools import spending_summary, top_expenses
 
-MODEL_NAME = "gemini-2.5-flash"  # free-tier model, generous daily rate limits
+MODEL_NAME = "gemini-3.6-flash"  # free-tier model, generous daily rate limits
 
 
 class CogniState(TypedDict):
