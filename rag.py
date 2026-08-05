@@ -36,7 +36,11 @@ def get_embeddings():
             "GEMINI_API_KEY not set. Export it before running the app, "
             "or add it to Streamlit secrets when deploying."
         )
-    return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key)
+    return GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=api_key,
+        task_type="retrieval_document",
+    )
 
 
 _VECTORSTORE_CACHE = None
