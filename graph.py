@@ -1,6 +1,6 @@
 """
 Cogni LangGraph flow:
-  query -> router -> (RAG | spending tool) -> answer
+query -> router -> (RAG | spending tool) -> answer
 """
 
 import os
@@ -10,9 +10,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from rag import get_retriever
-from tools import spending_summary, top_expenses, CATEGORY_MAP
+from tools import spending_summary, top_expenses
 
-MODEL_NAME = "gemini-2.0-flash"  # or "gemini-2.5-flash" if available on your key
+MODEL_NAME = "gemini-3.5-flash-lite"
 
 
 class CogniState(TypedDict):
@@ -25,44 +25,31 @@ class CogniState(TypedDict):
 def get_llm(temperature: float = 0.2):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY not set. Get a free key at https://aistudio.google.com/"
-        )
-    return ChatGoogleGenerativeAI(
-        model=MODEL_NAME,
-        temperature=temperature,
-        google_api_key=api_key,
-    )
+        raise RuntimeError("GEMINI_API_KEY not set.")
+    return ChatGoogleGenerativeAI(model=MODEL_NAME, temperature=temperature, google_api_key=api_key)
 
 
 ROUTER_SYSTEM_PROMPT = """You are a router for a personal finance assistant.
 Classify the user's question into exactly one category:
 
 - "spending_question": the user is asking about THEIR OWN spending, transactions,
-  totals, categories, or biggest expenses (e.g. "how much did I spend on food?",
-  "what are my top expenses?", "break down my spending by category").
+  totals, categories, or biggest expenses.
 - "general_finance": the user is asking a general finance/budgeting question that
-  does not require their personal transaction data (e.g. "what is the 50/30/20 rule?",
-  "how much should my emergency fund be?", "avalanche vs snowball method").
+  does not require their personal transaction data.
 
 Respond with ONLY the category label, nothing else."""
 
 
 def router_node(state: CogniState) -> CogniState:
-    query = str(state.get("query") or "").strip()
-    if not query:
-        raise ValueError("Query is empty")
-
     llm = get_llm(temperature=0)
     response = llm.invoke([
         SystemMessage(content=ROUTER_SYSTEM_PROMPT),
-        HumanMessage(content=query),
+        HumanMessage(content=state["query"]),
     ])
-    route = (response.content or "").strip().lower()
+    route = response.content.strip().lower()
     if route not in ("general_finance", "spending_question"):
         route = "general_finance"
-
-    return {**state, "query": query, "route": route}
+    return {**state, "route": route}
 
 
 def rag_node(state: CogniState) -> CogniState:
@@ -78,9 +65,10 @@ def spending_tool_node(state: CogniState) -> CogniState:
         context = top_expenses(n=5)
     else:
         category = None
-        for key in CATEGORY_MAP:
-            if key in query_lower:
-                category = key
+        for cat in ["food", "transport", "subscriptions", "utilities",
+                    "entertainment", "rent", "housing", "savings", "investment"]:
+            if cat in query_lower:
+                category = cat
                 break
         context = spending_summary(category=category)
     return {**state, "context": context}
@@ -88,24 +76,20 @@ def spending_tool_node(state: CogniState) -> CogniState:
 
 ANSWER_SYSTEM_PROMPT = """You are Cogni, a helpful personal finance assistant.
 Answer the user's question using ONLY the provided context. Be concise,
-friendly, and concrete — use actual numbers from the context where relevant.
-If the context doesn't fully answer the question, say what you can and note
-what's missing. Do not invent figures not present in the context."""
+friendly, and concrete — use actual numbers from the context where relevant."""
 
 
 def answer_node(state: CogniState) -> CogniState:
     llm = get_llm(temperature=0.3)
     response = llm.invoke([
         SystemMessage(content=ANSWER_SYSTEM_PROMPT),
-        HumanMessage(
-            content=f"Question: {state['query']}\n\nContext:\n{state.get('context') or 'No context.'}"
-        ),
+        HumanMessage(content=f"Question: {state['query']}\n\nContext:\n{state['context']}"),
     ])
     return {**state, "answer": response.content}
 
 
 def route_decision(state: CogniState) -> str:
-    return state["route"] or "general_finance"
+    return state["route"]
 
 
 def build_graph():
@@ -129,21 +113,13 @@ def build_graph():
     graph.add_edge("rag_retrieval", "generate_answer")
     graph.add_edge("spending_tool", "generate_answer")
     graph.add_edge("generate_answer", END)
+
     return graph.compile()
 
 
 def ask_cogni(query: str) -> str:
-    query = str(query or "").strip()
-    if not query:
-        raise ValueError("Query cannot be empty")
-
     app = build_graph()
-    result = app.invoke({
-        "query": query,
-        "route": None,
-        "context": None,
-        "answer": None,
-    })
+    result = app.invoke({"query": query, "route": None, "context": None, "answer": None})
     return result["answer"]
 
 
