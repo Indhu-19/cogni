@@ -25,8 +25,9 @@ def load_transactions() -> pd.DataFrame:
     df = pd.read_csv(TRANSACTIONS_PATH, parse_dates=["date"])
     return df
 
+from typing import Optional
 
-def spending_summary(category: str | None = None, month: str | None = None) -> str:
+def spending_summary(category: Optional[str] = None, month: Optional[str] = None) -> str:
     """
     Summarize spending, optionally filtered by category and/or month (YYYY-MM).
     """
