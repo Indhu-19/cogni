@@ -40,14 +40,13 @@ def get_embeddings():
 
 
 def build_or_load_vectorstore():
+    # Always build fresh rather than persisting to disk: the dataset is tiny
+    # (7 chunks) so rebuilding is cheap, and this avoids a stale index on
+    # disk becoming mismatched if the embedding model ever changes between
+    # deploys.
     embeddings = get_embeddings()
-    if os.path.exists(INDEX_PATH):
-        return FAISS.load_local(
-            INDEX_PATH, embeddings, allow_dangerous_deserialization=True
-        )
     chunks = load_and_split_docs()
     vectorstore = FAISS.from_documents(chunks, embeddings)
-    vectorstore.save_local(INDEX_PATH)
     return vectorstore
 
 
