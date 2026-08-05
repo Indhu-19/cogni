@@ -124,7 +124,7 @@ def build_graph():
     graph.add_node("router", router_node)
     graph.add_node("rag_retrieval", rag_node)
     graph.add_node("spending_tool", spending_tool_node)
-    graph.add_node("answer", answer_node)
+    graph.add_node("generate_answer", answer_node)
 
     graph.set_entry_point("router")
     graph.add_conditional_edges(
@@ -135,9 +135,9 @@ def build_graph():
             "spending_question": "spending_tool",
         },
     )
-    graph.add_edge("rag_retrieval", "answer")
-    graph.add_edge("spending_tool", "answer")
-    graph.add_edge("answer", END)
+    graph.add_edge("rag_retrieval", "generate_answer")
+    graph.add_edge("spending_tool", "generate_answer")
+    graph.add_edge("generate_answer", END)
 
     return graph.compile()
 
