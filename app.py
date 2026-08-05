@@ -61,6 +61,14 @@ if query:
             try:
                 answer = ask_cogni(query)
             except Exception as e:
-                answer = f"Error: {e}"
+                err_text = str(e)
+                if "429" in err_text or "quota" in err_text.lower():
+                    answer = (
+                        "I've hit the free-tier rate limit for the moment. "
+                        "This is a Gemini API quota limit, not a bug — please "
+                        "wait about a minute and try again."
+                    )
+                else:
+                    answer = f"Error: {e}"
             st.markdown(answer)
     st.session_state.history.append(("assistant", answer))
