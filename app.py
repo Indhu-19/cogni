@@ -58,34 +58,31 @@ if query is not None:
 
     if query == "":
         st.stop()
+
+    st.write("DEBUG Query:", repr(query))
+
     st.session_state.history.append(("user", query))
+
     with st.chat_message("user"):
         st.markdown(query)
 
-    import traceback
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
 
-...
+            try:
+                answer = ask_cogni(query)
 
-with st.chat_message("assistant"):
-    with st.spinner("Thinking..."):
-        try:
+            except Exception as e:
+                err = str(e).lower()
 
-    answer = ask_cogni(query)
+                if "429" in err or "quota" in err:
+                    answer = (
+                        "⚠️ Gemini free-tier quota exceeded.\n\n"
+                        "Please wait about a minute and try again."
+                    )
+                else:
+                    answer = traceback.format_exc()
 
-except Exception as e:
+            st.markdown(answer)
 
-    err = str(e).lower()
-
-    if "429" in err or "quota" in err:
-
-        answer = (
-            "⚠️ Gemini free-tier quota exceeded.\n\n"
-            "Please wait for about a minute and try again."
-        )
-
-    else:
-
-        import traceback
-
-        answer = f"""
-### Error
+    st.session_state.history.append(("assistant", answer))
