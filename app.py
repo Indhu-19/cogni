@@ -67,21 +67,15 @@ if query is not None:
         st.markdown(query)
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+    with st.spinner("Thinking..."):
 
-            try:
-                answer = ask_cogni(query)
+        try:
+            answer = ask_cogni(query)
 
-            except Exception as e:
-                err = str(e).lower()
+        except Exception:
+            answer = traceback.format_exc()
 
-                if "429" in err or "quota" in err:
-                    answer = (
-                        "⚠️ Gemini free-tier quota exceeded.\n\n"
-                        "Please wait about a minute and try again."
-                    )
-                else:
-                    answer = traceback.format_exc()
+        st.markdown(answer)
 
             st.markdown(answer)
 
