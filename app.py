@@ -22,7 +22,7 @@ with st.expander("About this project"):
            — answered via a tool that computes real numbers from a transactions dataset.
 
         A LangGraph router decides which path to take for each query.
-        Built with LangGraph, FAISS, sentence-transformers embeddings, and Gemini.
+        Built with LangGraph, FAISS, and Gemini (both for chat and embeddings).
         """
     )
 
