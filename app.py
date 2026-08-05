@@ -67,15 +67,13 @@ if query is not None:
         st.markdown(query)
 
     with st.chat_message("assistant"):
-    with st.spinner("Thinking..."):
+        with st.spinner("Thinking..."):
 
-        try:
-            answer = ask_cogni(query)
+            try:
+                answer = ask_cogni(query)
 
-        except Exception:
-            answer = traceback.format_exc()
-
-        st.markdown(answer)
+            except Exception:
+                answer = traceback.format_exc()
 
             st.markdown(answer)
 
