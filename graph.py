@@ -22,7 +22,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from rag import get_retriever
 from tools import spending_summary, top_expenses
 
-MODEL_NAME = "gemini-3.5-flash"  # free-tier model, generous daily rate limits
+MODEL_NAME = "gemini-2.5-flash"  # free-tier model, generous daily rate limits
 
 
 class CogniState(TypedDict):
@@ -57,16 +57,35 @@ Respond with ONLY the category label, nothing else."""
 
 
 def router_node(state: CogniState) -> CogniState:
+    query = state.get("query")
+
+    if query is None:
+        raise ValueError("Query is None")
+
+    query = str(query).strip()
+
+    if not query:
+        raise ValueError("Query is empty")
+
     llm = get_llm(temperature=0)
+
     messages = [
         SystemMessage(content=ROUTER_SYSTEM_PROMPT),
-        HumanMessage(content=state["query"]),
+        HumanMessage(content=query),
     ]
+
     response = llm.invoke(messages)
+
     route = response.content.strip().lower()
+
     if route not in ("general_finance", "spending_question"):
-        route = "general_finance"  # safe default
-    return {**state, "route": route}
+        route = "general_finance"
+
+    return {
+        **state,
+        "query": query,
+        "route": route,
+    }
 
 
 def rag_node(state: CogniState) -> CogniState:
@@ -143,8 +162,26 @@ def build_graph():
 
 
 def ask_cogni(query: str) -> str:
+
+    if query is None:
+        raise ValueError("Query cannot be None")
+
+    query = str(query).strip()
+
+    if query == "":
+        raise ValueError("Query cannot be empty")
+
     app = build_graph()
-    result = app.invoke({"query": query, "route": None, "context": None, "answer": None})
+
+    result = app.invoke(
+        {
+            "query": query,
+            "route": None,
+            "context": None,
+            "answer": None,
+        }
+    )
+
     return result["answer"]
 
 
