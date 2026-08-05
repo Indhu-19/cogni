@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+import traceback
 
 # Streamlit Cloud: put GEMINI_API_KEY in the app's Secrets, it lands in env vars.
 if "GEMINI_API_KEY" in st.secrets:
