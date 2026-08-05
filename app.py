@@ -2,6 +2,8 @@ import os
 import streamlit as st
 import traceback
 
+from dotenv import load_dotenv
+load_dotenv()  # loads .env into os.environ if present, no-op otherwise
 # Streamlit Cloud secrets -> env
 if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
     os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
