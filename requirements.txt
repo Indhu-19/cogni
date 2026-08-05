@@ -1,8 +1,8 @@
-langchain==0.3.7
-langchain-google-genai==2.1.5
-langgraph==0.2.53
-faiss-cpu==1.9.0
-langchain-community==0.3.7
-streamlit==1.40.1
-pandas==2.2.3
-python-dotenv==1.0.1
+langchain
+langchain-google-genai
+langgraph
+faiss-cpu
+langchain-community
+streamlit
+pandas
+python-dotenv
