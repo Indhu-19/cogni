@@ -2,15 +2,14 @@
 RAG pipeline for Cogni.
 
 Loads the budgeting principles markdown doc, splits it into chunks,
-embeds them locally with a sentence-transformers model, and builds
-a FAISS vector store for retrieval. Embeddings run locally (no API
-calls), so this part is free and fast to iterate on.
+embeds them using Gemini's embedding model, and builds a FAISS vector
+store for retrieval. Uses the same GEMINI_API_KEY as the LLM calls,
+so no separate model download or credential is needed.
 """
 
 import os
-from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownHeaderTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "budgeting_principles.md")
@@ -31,8 +30,13 @@ def load_and_split_docs():
 
 
 def get_embeddings():
-    # Small, fast, local model — no external API calls needed for embeddings.
-    return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY not set. Export it before running the app, "
+            "or add it to Streamlit secrets when deploying."
+        )
+    return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=api_key)
 
 
 def build_or_load_vectorstore():
