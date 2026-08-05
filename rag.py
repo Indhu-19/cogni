@@ -36,17 +36,23 @@ def get_embeddings():
             "GEMINI_API_KEY not set. Export it before running the app, "
             "or add it to Streamlit secrets when deploying."
         )
-    return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=api_key)
+    return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key)
+
+
+_VECTORSTORE_CACHE = None
 
 
 def build_or_load_vectorstore():
-    # Always build fresh rather than persisting to disk: the dataset is tiny
-    # (7 chunks) so rebuilding is cheap, and this avoids a stale index on
-    # disk becoming mismatched if the embedding model ever changes between
-    # deploys.
+    # Cache in memory for the life of the process: rebuilding on every
+    # query means re-embedding all chunks each time, which multiplies API
+    # calls unnecessarily and can exhaust free-tier rate limits fast.
+    global _VECTORSTORE_CACHE
+    if _VECTORSTORE_CACHE is not None:
+        return _VECTORSTORE_CACHE
     embeddings = get_embeddings()
     chunks = load_and_split_docs()
     vectorstore = FAISS.from_documents(chunks, embeddings)
+    _VECTORSTORE_CACHE = vectorstore
     return vectorstore
 
 
