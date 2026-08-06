@@ -82,7 +82,7 @@ def router_node(state: CogniState) -> CogniState:
 
 
 def rag_node(state: CogniState) -> CogniState:
-    retriever = get_retriever(k=3)
+    retriever = get_retriever(k=4)
     docs = retriever.invoke(state["query"])
     context = "\n\n---\n\n".join(d.page_content for d in docs)
     return {**state, "context": context}
