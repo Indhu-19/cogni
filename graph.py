@@ -1,6 +1,12 @@
 """
-Cogni LangGraph flow:
-query -> router -> (RAG | spending tool) -> answer
+Cogni's core LangGraph flow.
+
+Flow:
+  user query
+    -> router node (LLM classifies: "general_finance" vs "spending_question")
+    -> if general_finance: RAG retrieval node -> answer node
+    -> if spending_question: spending tool node -> answer node
+    -> answer node produces the final natural-language response
 """
 
 import os
@@ -29,24 +35,47 @@ def get_llm(temperature: float = 0.2):
     return ChatGoogleGenerativeAI(model=MODEL_NAME, temperature=temperature, google_api_key=api_key)
 
 
+def extract_text(response) -> str:
+    """
+    Some Gemini responses return `.content` as a plain string, others as a
+    list of content blocks (e.g. [{"type": "text", "text": "..."}]).
+    Normalize both cases to a plain string so callers never have to guess.
+    """
+    content = response.content
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                parts.append(block.get("text", ""))
+        return "".join(parts).strip()
+    return str(content).strip()
+
+
 ROUTER_SYSTEM_PROMPT = """You are a router for a personal finance assistant.
 Classify the user's question into exactly one category:
 
 - "spending_question": the user is asking about THEIR OWN spending, transactions,
-  totals, categories, or biggest expenses.
+  totals, categories, or biggest expenses (e.g. "how much did I spend on food?",
+  "what are my top expenses?", "break down my spending by category").
 - "general_finance": the user is asking a general finance/budgeting question that
-  does not require their personal transaction data.
+  does not require their personal transaction data (e.g. "what is the 50/30/20 rule?",
+  "how much should my emergency fund be?", "avalanche vs snowball method").
 
 Respond with ONLY the category label, nothing else."""
 
 
 def router_node(state: CogniState) -> CogniState:
     llm = get_llm(temperature=0)
-    response = llm.invoke([
+    messages = [
         SystemMessage(content=ROUTER_SYSTEM_PROMPT),
         HumanMessage(content=state["query"]),
-    ])
-    route = response.content.strip().lower()
+    ]
+    response = llm.invoke(messages)
+    route = extract_text(response).lower()
     if route not in ("general_finance", "spending_question"):
         route = "general_finance"
     return {**state, "route": route}
@@ -61,7 +90,7 @@ def rag_node(state: CogniState) -> CogniState:
 
 def spending_tool_node(state: CogniState) -> CogniState:
     query_lower = state["query"].lower()
-    if any(w in query_lower for w in ("top", "biggest", "largest")):
+    if "top" in query_lower or "biggest" in query_lower or "largest" in query_lower:
         context = top_expenses(n=5)
     else:
         category = None
@@ -76,16 +105,21 @@ def spending_tool_node(state: CogniState) -> CogniState:
 
 ANSWER_SYSTEM_PROMPT = """You are Cogni, a helpful personal finance assistant.
 Answer the user's question using ONLY the provided context. Be concise,
-friendly, and concrete — use actual numbers from the context where relevant."""
+friendly, and concrete — use actual numbers from the context where relevant.
+If the context doesn't fully answer the question, say what you can and note
+what's missing. Do not invent figures not present in the context."""
 
 
 def answer_node(state: CogniState) -> CogniState:
     llm = get_llm(temperature=0.3)
-    response = llm.invoke([
+    messages = [
         SystemMessage(content=ANSWER_SYSTEM_PROMPT),
-        HumanMessage(content=f"Question: {state['query']}\n\nContext:\n{state['context']}"),
-    ])
-    return {**state, "answer": response.content}
+        HumanMessage(
+            content=f"Question: {state['query']}\n\nContext:\n{state['context']}"
+        ),
+    ]
+    response = llm.invoke(messages)
+    return {**state, "answer": extract_text(response)}
 
 
 def route_decision(state: CogniState) -> str:
